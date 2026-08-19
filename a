@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محاكي نموذج SIR للأوبئة</title>
+<style>
+  :root{
+    --bg: #0b1622;
+    --panel: #10202f;
+    --panel-2: #142838;
+    --line: #1e3548;
+    --text: #e8f0f5;
+    --muted: #7f9bb0;
+    --s-color: #4a90d9;
+    --i-color: #e0554a;
+    --r-color: #4fae87;
+    --accent: #e8a23d;
+    --font-display: 'Tahoma', 'Segoe UI', sans-serif;
+    --font-mono: 'Consolas', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    padding: 28px 20px;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1{
+    margin:0;
+    font-size: 1.6rem;
+    letter-spacing: 0.5px;
+  }
+  header p{
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .badge{
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 820px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .panel h2{
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .control{
+    margin-bottom: 18px;
+  }
+  .control label{
+    display:flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  .control label span.val{
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 0.85rem;
+  }
+  input[type=range]{
+    width: 100%;
+    -webkit-appearance:none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width: 16px; height:16px;
+    border-radius:50%;
+    background: var(--accent);
+    cursor:pointer;
+    border: 2px solid var(--bg);
+  }
+  input[type=range]::-moz-range-thumb{
+    width: 14px; height:14px;
+    border-radius:50%;
+    background: var(--accent);
+    cursor:pointer;
+    border: 2px solid var(--bg);
+  }
+  .hint{
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .r0-box{
+    margin-top: 22px;
+    padding: 14px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    text-align:center;
+  }
+  .r0-box .r0-label{
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .r0-box .r0-val{
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .r0-box .r0-note{
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .buttons{
+    display:flex;
+    gap:8px;
+    margin-top: 18px;
+  }
+  button{
+    flex:1;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 6px;
+    cursor:pointer;
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  button:hover{
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button.primary{
+    background: var(--accent);
+    color: #241505;
+    font-weight: 700;
+    border-color: var(--accent);
+  }
+  button.primary:hover{
+    filter: brightness(1.1);
+    color: #241505;
+  }
+  .chart-area{
+    display:flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .stats-row{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 600px){
+    .stats-row{ grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    text-align:center;
+  }
+  .stat .label{
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .stat .value{
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    margin-top: 4px;
+  }
+  .stat.s .value{ color: var(--s-color); }
+  .stat.i .value{ color: var(--i-color); }
+  .stat.r .value{ color: var(--r-color); }
+  .stat.day .value{ color: var(--text); }
+  canvas{
+    width: 100%;
+    display:block;
+    border-radius: 8px;
+  }
+  .legend{
+    display:flex;
+    gap: 18px;
+    justify-content:center;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .legend .dot{
+    display:inline-block;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .day-slider{
+    margin-top: 4px;
+  }
+  footer{
+    margin-top: 22px;
+    text-align:center;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>محاكي نموذج SIR للأوبئة</h1>
+      <p>نموذج رياضي لانتشار الأمراض المعدية عبر ثلاث فئات: قابلون للعدوى، مصابون، متعافون</p>
+    </div>
+    <div class="badge">S + I + R = ثابت</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Controls Panel -->
+    <div class="panel">
+      <h2>معايير النموذج</h2>
+
+      <div class="control">
+        <label>عدد السكان الكلي (N) <span class="val" id="valN">1000</span></label>
+        <input type="range" id="N" min="100" max="10000" step="100" value="1000">
+      </div>
+
+      <div class="control">
+        <label>المصابون في البداية (I₀) <span class="val" id="valI0">5</span></label>
+        <input type="range" id="I0" min="1" max="200" step="1" value="5">
+      </div>
+
+      <div class="control">
+        <label>معدل العدوى (β) <span class="val" id="valBeta">0.30</span></label>
+        <input type="range" id="beta" min="0.01" max="1.0" step="0.01" value="0.30">
+        <div class="hint">احتمال انتقال المرض عند التماس بين شخص مصاب وآخر قابل للعدوى</div>
+      </div>
+
+      <div class="control">
+        <label>معدل الشفاء (γ) <span class="val" id="valGamma">0.10</span></label>
+        <input type="range" id="gamma" min="0.01" max="1.0" step="0.01" value="0.10">
+        <div class="hint">نسبة المصابين الذين يتعافون (أو يُعزلون) في كل يوم</div>
+      </div>
+
+      <div class="control">
+        <label>مدة المحاكاة (يوم) <span class="val" id="valDays">160</span></label>
+        <input type="range" id="days" min="30" max="365" step="5" value="160">
+      </div>
+
+      <div class="r0-box">
+        <div class="r0-label">معدل التكاثر الأساسي R₀ = β / γ</div>
+        <div class="r0-val" id="r0val">3.00</div>
+        <div class="r0-note" id="r0note">كل مصاب واحد ينقل العدوى لعدد آخرين في المتوسط</div>
+      </div>
+
+      <div class="buttons">
+        <button class="primary" id="playBtn">▶ تشغيل المحاكاة</button>
+        <button id="resetBtn">↺ إعادة ضبط</button>
+      </div>
+    </div>
+
+    <!-- Chart Area -->
+    <div class="chart-area">
+
+      <div class="stats-row">
+        <div class="stat day">
+          <div class="label">اليوم الحالي</div>
+          <div class="value" id="statDay">0</div>
+        </div>
+        <div class="stat s">
+          <div class="label">قابلون للعدوى</div>
+          <div class="value" id="statS">995</div>
+        </div>
+        <div class="stat i">
+          <div class="label">مصابون</div>
+          <div class="value" id="statI">5</div>
+        </div>
+        <div class="stat r">
+          <div class="label">متعافون</div>
+          <div class="value" id="statR">0</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <canvas id="chart" width="1200" height="480"></canvas>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--s-color)"></span>قابلون للعدوى (S)</span>
+          <span><span class="dot" style="background:var(--i-color)"></span>مصابون (I)</span>
+          <span><span class="dot" style="background:var(--r-color)"></span>متعافون (R)</span>
+          <span><span class="dot" style="background:var(--accent)"></span>ذروة الإصابات</span>
+        </div>
+        <div class="control day-slider">
+          <label>استعراض يوم محدد <span class="val" id="valScrub">0</span></label>
+          <input type="range" id="scrub" min="0" max="160" step="1" value="160">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>يستخدم النموذج معادلات تفاضلية (طريقة رونغه-كوتا من الرتبة الرابعة) لحساب تطور الأعداد يومًا بيوم</footer>
+</div>
+
+<script>
+const els = {
+  N: document.getElementById('N'),
+  I0: document.getElementById('I0'),
+  beta: document.getElementById('beta'),
+  gamma: document.getElementById('gamma'),
+  days: document.getElementById('days'),
+  scrub: document.getElementById('scrub'),
+  playBtn: document.getElementById('playBtn'),
+  resetBtn: document.getElementById('resetBtn'),
+};
+const valEls = {
+  N: document.getElementById('valN'),
+  I0: document.getElementById('valI0'),
+  beta: document.getElementById('valBeta'),
+  gamma: document.getElementById('valGamma'),
+  days: document.getElementById('valDays'),
+  scrub: document.getElementById('valScrub'),
+};
+const r0val = document.getElementById('r0val');
+const r0note = document.getElementById('r0note');
+const statDay = document.getElementById('statDay');
+const statS = document.getElementById('statS');
+const statI = document.getElementById('statI');
+const statR = document.getElementById('statR');
+
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+let series = []; // {t, S, I, R}
+let animId = null;
+let playing = false;
+let currentDay = 0;
+
+function simulate(){
+  const N = parseFloat(els.N.value);
+  const I0 = parseFloat(els.I0.value);
+  const beta = parseFloat(els.beta.value);
+  const gamma = parseFloat(els.gamma.value);
+  const days = parseInt(els.days.value);
+
+  const dt = 1; // one day steps, RK4
+  let S = N - I0;
+  let I = I0;
+  let R = 0;
+
+  const data = [{t:0, S, I, R}];
+
+  function deriv(S,I,R){
+    const dS = -beta * S * I / N;
+    const dI = beta * S * I / N - gamma * I;
+    const dR = gamma * I;
+    return [dS, dI, dR];
+  }
+
+  for(let t=1; t<=days; t++){
+    const k1 = deriv(S,I,R);
+    const k2 = deriv(S + dt/2*k1[0], I + dt/2*k1[1], R + dt/2*k1[2]);
+    const k3 = deriv(S + dt/2*k2[0], I + dt/2*k2[1], R + dt/2*k2[2]);
+    const k4 = deriv(S + dt*k3[0], I + dt*k3[1], R + dt*k3[2]);
+
+    S += dt/6 * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]);
+    I += dt/6 * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
+    R += dt/6 * (k1[2] + 2*k2[2] + 2*k3[2] + k4[2]);
+
+    S = Math.max(0,S); I = Math.max(0,I); R = Math.max(0,R);
+    data.push({t, S, I, R});
+  }
+  return data;
+}
+
+function findPeak(data){
+  let peak = data[0];
+  for(const d of data){ if(d.I > peak.I) peak = d; }
+  return peak;
+}
+
+function draw(uptoDay){
+  const N = parseFloat(els.N.value);
+  const W = canvas.width, H = canvas.height;
+  const padL = 60, padR = 30, padT = 20, padB = 40;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  ctx.clearRect(0,0,W,H);
+
+  // background grid
+  ctx.strokeStyle = '#1e3548';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#7f9bb0';
+  ctx.font = '13px Consolas, monospace';
+  ctx.textAlign = 'right';
+
+  const gridLines = 5;
+  for(let i=0;i<=gridLines;i++){
+    const y = padT + plotH - (plotH/gridLines)*i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+    const val = Math.round((N/gridLines)*i);
+    ctx.fillText(val.toLocaleString(), padL - 8, y+4);
+  }
+
+  const maxDay = series.length - 1;
+  ctx.textAlign = 'center';
+  const dayTicks = 6;
+  for(let i=0;i<=dayTicks;i++){
+    const x = padL + (plotW/dayTicks)*i;
+    const dayVal = Math.round((maxDay/dayTicks)*i);
+    ctx.fillText(dayVal, x, H - padB + 20);
+  }
+
+  function xOf(t){ return padL + (t/maxDay)*plotW; }
+  function yOf(v){ return padT + plotH - (v/N)*plotH; }
+
+  function drawLine(key, color){
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    for(let i=0;i<=uptoDay && i<series.length;i++){
+      const p = series[i];
+      const x = xOf(p.t), y = yOf(p[key]);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  drawLine('S', '#4a90d9');
+  drawLine('I', '#e0554a');
+  drawLine('R', '#4fae87');
+
+  // peak marker
+  const peak = findPeak(series);
+  if(peak.t <= uptoDay){
+    const px = xOf(peak.t), py = yOf(peak.I);
+    ctx.beginPath();
+    ctx.strokeStyle = '#e8a23d';
+    ctx.setLineDash([4,4]);
+    ctx.moveTo(px, padT);
+    ctx.lineTo(px, padT+plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.fillStyle = '#e8a23d';
+    ctx.arc(px, py, 4, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // current position marker
+  if(uptoDay < series.length){
+    const cur = series[uptoDay];
+    ['S','I','R'].forEach((key, idx)=>{
+      const colors = {S:'#4a90d9', I:'#e0554a', R:'#4fae87'};
+      const x = xOf(cur.t), y = yOf(cur[key]);
+      ctx.beginPath();
+      ctx.fillStyle = colors[key];
+      ctx.arc(x,y,4,0,Math.PI*2);
+      ctx.fill();
+    });
+  }
+}
+
+function updateStats(day){
+  const d = series[Math.min(day, series.length-1)];
+  statDay.textContent = d.t;
+  statS.textContent = Math.round(d.S).toLocaleString();
+  statI.textContent = Math.round(d.I).toLocaleString();
+  statR.textContent = Math.round(d.R).toLocaleString();
+}
+
+function refreshR0(){
+  const beta = parseFloat(els.beta.value);
+  const gamma = parseFloat(els.gamma.value);
+  const r0 = beta/gamma;
+  r0val.textContent = r0.toFixed(2);
+  if(r0 > 1){
+    r0note.textContent = 'الوباء ينتشر ويتوسع (R₀ أكبر من 1)';
+    r0val.style.color = '#e0554a';
+  } else {
+    r0note.textContent = 'الوباء ينحسر تدريجيًا (R₀ أصغر من أو يساوي 1)';
+    r0val.style.color = '#4fae87';
+  }
+}
+
+function recompute(resetScrub){
+  series = simulate();
+  els.scrub.max = series.length - 1;
+  if(resetScrub){
+    els.scrub.value = series.length - 1;
+    currentDay = series.length - 1;
+  } else {
+    currentDay = Math.min(currentDay, series.length-1);
+    els.scrub.value = currentDay;
+  }
+  valEls.scrub.textContent = els.scrub.value;
+  refreshR0();
+  draw(currentDay);
+  updateStats(currentDay);
+}
+
+function syncLabels(){
+  valEls.N.textContent = parseInt(els.N.value).toLocaleString();
+  valEls.I0.textContent = els.I0.value;
+  valEls.beta.textContent = parseFloat(els.beta.value).toFixed(2);
+  valEls.gamma.textContent = parseFloat(els.gamma.value).toFixed(2);
+  valEls.days.textContent = els.days.value;
+}
+
+['N','I0','beta','gamma','days'].forEach(key=>{
+  els[key].addEventListener('input', ()=>{
+    syncLabels();
+    recompute(true);
+  });
+});
+
+els.scrub.addEventListener('input', ()=>{
+  currentDay = parseInt(els.scrub.value);
+  valEls.scrub.textContent = currentDay;
+  draw(currentDay);
+  updateStats(currentDay);
+  if(playing) stopPlay();
+});
+
+function stopPlay(){
+  playing = false;
+  els.playBtn.textContent = '▶ تشغيل المحاكاة';
+  if(animId) cancelAnimationFrame(animId);
+}
+
+function startPlay(){
+  playing = true;
+  els.playBtn.textContent = '⏸ إيقاف مؤقت';
+  currentDay = 0;
+  let lastTime = performance.now();
+  const stepMs = 40;
+
+  function loop(now){
+    if(!playing) return;
+    if(now - lastTime >= stepMs){
+      lastTime = now;
+      currentDay++;
+      if(currentDay >= series.length){
+        currentDay = series.length - 1;
+        draw(currentDay); updateStats(currentDay);
+        stopPlay();
+        return;
+      }
+      els.scrub.value = currentDay;
+      valEls.scrub.textContent = currentDay;
+      draw(currentDay);
+      updateStats(currentDay);
+    }
+    animId = requestAnimationFrame(loop);
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+els.playBtn.addEventListener('click', ()=>{
+  if(playing) stopPlay();
+  else startPlay();
+});
+
+els.resetBtn.addEventListener('click', ()=>{
+  stopPlay();
+  els.N.value = 1000;
+  els.I0.value = 5;
+  els.beta.value = 0.30;
+  els.gamma.value = 0.10;
+  els.days.value = 160;
+  syncLabels();
+  recompute(true);
+});
+
+// init
+syncLabels();
+recompute(true);
+</script>
+</body>
+</html>
